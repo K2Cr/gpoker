@@ -239,7 +239,7 @@ gPoker.betType = {
         }
     },
 
-    [1] = {
+    /*[1] = {
         name        = "Health",
         fix         = "HP",
         canSet      = false,
@@ -294,7 +294,7 @@ gPoker.betType = {
                 scale = 1
             }
         }
-    }
+    }*/
 }
 
 
