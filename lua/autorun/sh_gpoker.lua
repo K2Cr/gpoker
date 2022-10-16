@@ -165,7 +165,7 @@ gPoker.gameType = {
 gPoker.betType = {
     [0] = {
         name        = "Money",                            --Name
-        fix         = "$",                                --Text after value
+        fix         = "£",                                --Text after value
         canSet      = DarkRP != nil and IsValid(DarkRP),  --Can players set the amount of value each player gets in the spawn derma?
         setMinMax   = {min = 0, max = 10000},             --The minimum and maximum number of starting value (if uses)
         feeMinMax   = {min = 0, max = function(setSlider) 
