@@ -164,23 +164,26 @@ gPoker.gameType = {
 //Poker bets
 gPoker.betType = {
     [0] = {
-        name        = "Money",                              --Name
-        fix         = "$",                                  --Text after value
-        canSet      = engine.ActiveGamemode() != "darkrp",  --Can players set the amount of value each player gets in the spawn derma?
-        setMinMax   = {min = 0, max = 10000},                --The minimum and maximum number of starting value (if uses)
+        name        = "Money",                            --Name
+        fix         = "$",                                --Text after value
+        canSet      = DarkRP != nil and IsValid(DarkRP),  --Can players set the amount of value each player gets in the spawn derma?
+        setMinMax   = {min = 0, max = 10000},             --The minimum and maximum number of starting value (if uses)
         feeMinMax   = {min = 0, max = function(setSlider) 
             if CLIENT then 
-                if engine.ActiveGamemode() != "darkrp" then 
+                if (not DarkRP) then 
                     return setSlider:GetValue() 
                 else 
                     return LocalPlayer():getDarkRPVar("money") 
                 end 
             end
         end}, --The minimum and maximum of entry fee
-        get         = function(p)                           --Method for getting specified player's value
+        get = function(p)                           --Method for getting specified player's value
             if !IsValid(p) then return end
 
-            local isDarkRp = engine.ActiveGamemode() == "darkrp"
+            local isDarkRp = false
+            if (DarkRP) then
+                isDarkRp = true
+            end
 
             if !isDarkRp or (isDarkRp and !p:IsPlayer()) then
                 local e = gPoker.getTableFromPlayer(p)
@@ -193,12 +196,15 @@ gPoker.betType = {
                 return p:getDarkRPVar("money")
             end
         end,
-        add         = function(p, a, e)                        --Method for adding or subtracting the value
+        add = function(p, a, e)                        --Method for adding or subtracting the value
             if CLIENT then return end
             if !IsValid(p) then return end
 
 
-            local isDarkRp = engine.ActiveGamemode() == "darkrp"
+            local isDarkRp = false
+            if (DarkRP) then
+                isDarkRp = true
+            end
             a = a or 0
 
             if !isDarkRp or (isDarkRp and !p:IsPlayer()) then 
@@ -214,7 +220,7 @@ gPoker.betType = {
             e:SetPot(e:GetPot() - a)
         end,
         call = function(s, p) --Called after player joins, mostly used for setting up custom value
-            if !(engine.ActiveGamemode() == "darkrp") then
+            if (not DarkRP) then
                 s.players[s:getPlayerKey(p)].money = s:GetStartValue()
             elseif !p:IsPlayer() then
                 s.players[s:getPlayerKey(p)].money = math.random(100,1000)
