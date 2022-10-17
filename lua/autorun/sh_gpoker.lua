@@ -164,11 +164,11 @@ gPoker.gameType = {
 //Poker bets
 gPoker.betType = {
     [0] = {
-        name        = "Money",              --Name
-        fix         = "£",                  --Text after value
-        canSet      = not DarkRP,                 --Can players set the amount of value each player gets in the spawn derma?
-        setMinMax   = {min = 0, max = 10000}, --The minimum and maximum number of starting value (if uses)
-        canJoin     = function(ply,table)  --Can the player join the table?
+        name        = "Money",                  --Name
+        fix         = "£",                      --Text after value
+        canSet      = not DarkRP,               --Can players set the amount of value each player gets in the spawn derma?
+        setMinMax   = {min = 0, max = 10000},   --The minimum and maximum number of starting value (if uses)
+        canJoin     = function(ply,table)       --Can the player join the table?
             if (not DarkRP) then
                 return true
             end
@@ -437,5 +437,3 @@ function gPoker.fancyDeckStrength(st,vl)
 
     return text
 end
-
-print("File loaded??")
