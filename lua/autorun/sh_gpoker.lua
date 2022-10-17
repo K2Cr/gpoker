@@ -1,6 +1,6 @@
-gPoker = {}
+gPoker = gPoker or {}
 
-gPoker.model = Model("")
+-- gPoker.model = Model("") // Why does this exist??
 
 //Poker games
 
@@ -43,7 +43,7 @@ gPoker.gameType = {
                     if !IsValid(win) then return end
 
                     local t
-                    if win:IsPlayer() then t = win:Nick() else t = win:GetBotName() end
+                    if win:IsPlayer() then t = win:Nick() else t = "PLACEHOLDER" end
                     t =  t .. " has: "
 
                     if e.players[e:GetWinner()].strength and e.players[e:GetWinner()].value then
@@ -66,7 +66,7 @@ gPoker.gameType = {
                     if !IsValid(win) then return "Winner: " end
 
                     local t = "Winner: "
-                    if win:IsPlayer() then t = t .. win:Nick() else t = t .. win:GetBotName() end
+                    if win:IsPlayer() then t = t .. win:Nick() else t = t .. "PLACEHOLDER" end
                     t = t .. ", " .. gPoker.fancyDeckStrength(e.players[e:GetWinner()].strength, e.players[e:GetWinner()].value)
 
                     return t
@@ -127,7 +127,7 @@ gPoker.gameType = {
                     if !IsValid(win) then return end
 
                     local t
-                    if win:IsPlayer() then t = win:Nick() else t = win:GetBotName() end
+                    if win:IsPlayer() then t = win:Nick() else t = "PLACEHOLDER" end
                     t =  t .. " has: "
 
                     if e.players[e:GetWinner()].strength and e.players[e:GetWinner()].value then
@@ -150,7 +150,7 @@ gPoker.gameType = {
                     if !IsValid(win) then return "Winner: " end
 
                     local t = "Winner: "
-                    if win:IsPlayer() then t = t .. win:Nick() else t = t .. win:GetBotName() end
+                    if win:IsPlayer() then t = t .. win:Nick() else t = t .. "PLACEHOLDER" end
                     t = t .. ", " .. gPoker.fancyDeckStrength(e.players[e:GetWinner()].strength, e.players[e:GetWinner()].value)
 
                     return t
@@ -164,17 +164,22 @@ gPoker.gameType = {
 //Poker bets
 gPoker.betType = {
     [0] = {
-        name        = "Money",                            --Name
-        fix         = "£",                                --Text after value
-        canSet      = DarkRP != nil and IsValid(DarkRP),  --Can players set the amount of value each player gets in the spawn derma?
-        setMinMax   = {min = 0, max = 10000},             --The minimum and maximum number of starting value (if uses)
+        name        = "Money",              --Name
+        fix         = "£",                  --Text after value
+        canSet      = not DarkRP,                 --Can players set the amount of value each player gets in the spawn derma?
+        setMinMax   = {min = 0, max = 10000}, --The minimum and maximum number of starting value (if uses)
+        canJoin     = function(ply,table)  --Can the player join the table?
+            if (not DarkRP) then
+                return true
+            end
+            local balance = ply:getDarkRPVar("money")
+            local min = table:GetEntryBet() or 0
+            
+            return balance >= min
+        end,
         feeMinMax   = {min = 0, max = function(setSlider) 
             if CLIENT then 
-                if (not DarkRP) then 
-                    return setSlider:GetValue() 
-                else 
-                    return LocalPlayer():getDarkRPVar("money") 
-                end 
+                return setSlider:GetValue() 
             end
         end}, --The minimum and maximum of entry fee
         get = function(p)                           --Method for getting specified player's value
@@ -244,8 +249,7 @@ gPoker.betType = {
             }
         }
     },
-
-    /*[1] = {
+    [1] = {
         name        = "Health",
         fix         = "HP",
         canSet      = false,
@@ -300,21 +304,23 @@ gPoker.betType = {
                 scale = 1
             }
         }
-    }*/
+    }
 }
 
-
-
 //Cards materials, for hud
-gPoker.cards = {}
 
-for s = 0, 3 do
-    gPoker.cards[s] = {}
+if (not gPoker.cards) then
+    gPoker.cards = {}
 
-    for r = 0, 12 do
-        gPoker.cards[s][r] = Material("gpoker/cards/" .. s .. r .. ".png")
+    for s = 0, 3 do
+        gPoker.cards[s] = {}
+
+        for r = 0, 12 do
+            gPoker.cards[s][r] = Material("gpoker/cards/" .. s .. r .. ".png")
+        end
     end
 end
+
 
 gPoker.suit = {
     [0] = "Club",
@@ -322,6 +328,7 @@ gPoker.suit = {
     [2] = "Heart",
     [3] = "Spade"
 }
+
 
 gPoker.rank = {
     [0] = "Two",
@@ -339,6 +346,7 @@ gPoker.rank = {
     [12] = "Ace"
 }
 
+
 gPoker.strength = {
     [0] = "High Card",
     [1] = "Pair",
@@ -352,14 +360,7 @@ gPoker.strength = {
     [9] = "Royal Flush"
 }
 
-//Bots section//
-
-gPoker.bots = {}
-
-//Lots of references
-gPoker.bots.names = {"Æ", "The Shark", "Multiplier", "The Ripper", "Big Boss", "Christ", "The Dude", "White", "Freeman", "Alpha", "Jetstream", "Beta", "Approaching Storm", "Afton", "Gamma", "White Wolf", "Narrator", "Rookie", "Snake Eater", "Mars", "Tea Sniffer", "Dango", "Folder", "Scarlet Devil", "Beep Boop", "Karen Slayer", "The Beach", "Silent", "May", "August", "Player", "Sol", "Risker", "Miller", "Slayer of Doom", "Doom", "Finger", /*v1.0.3*/ "Minge", "anonymous", "ByzrK", "Trickster", "Dummy", "Cthulhu", "Deadweight", "Quiet", "V1", "V2", "Deez", "Nuts", "Shalashaska", "Liquid", "Bandit", "Monkey", "Bloon", "Red", "La Li Lu Le Lo", "Impending Doom", "Engineer", "Gwent Expert", "GPoker sucks", "Bug", "Red Saber", "CUtIRBTree Overflow!", "Stack Overflow", "JC"}
-
-//Global Functions//
+//Functions//
 
 //Finds the table player is playing at
 function gPoker.getTableFromPlayer(p)
@@ -377,8 +378,6 @@ function gPoker.getTableFromPlayer(p)
 
     return nil
 end
-
-
 
 //Returns a fancy formatted string of deck strength
 function gPoker.fancyDeckStrength(st,vl)
@@ -438,3 +437,5 @@ function gPoker.fancyDeckStrength(st,vl)
 
     return text
 end
+
+print("File loaded??")

@@ -48,87 +48,6 @@ function ENT:Initialize()
     util.PrecacheModel("models/gpoker/dealerchip.mdl")
 end
 
-
-
-//Adds or removes bots
-function ENT:updateBots(tab)
-    tab = tab or {}
-    local botNumNew = #tab
-    local botNum = self:getBotsAmount()
-    local addAmount = botNumNew - botNum
-
-    if addAmount > 0 then --We add new bots
-        for i = 1, addAmount do
-            self:addBot(tab[i])
-        end
-    elseif addAmount < 0 then --We subtract most recent bots
-        local removed = 0
-
-        for i = #self.players, 1, -1 do
-            if self.players[i].bot then
-                removed = removed + 1
-                self:removeBot(Entity(self.players[i].ind)) 
-
-                if removed == botNumNew then break end
-            end
-        end
-    end
-
-    timer.Simple(0.1, function()
-        if IsValid(self) then
-            self:updatePlayersTable()
-        end
-    end)
-end
-
-
-
-//01110101 01101100 01110100 01110010 01100001 01101011 01101001 01101100 01101100
-function ENT:addBot(data)
-    local index = #self.players + 1
-
-    if index > self:GetMaxPlayers() then return end
-
-    local seat = self:createSeat()
-    seat:SetLocalPos(Vector(0,0,0))
-    seat:SetLocalAngles(Angle(0,0,0))
-    seat:Spawn()
-
-    local bot = ents.Create("ent_poker_bot")
-    bot:SetParent(seat)
-    bot:SetLocalPos(Vector(0,0,20))
-    bot:SetLocalAngles(Angle(0,90,0))
-    bot:Spawn()
-    bot:Activate()
-    bot:SetBotName(data.name)
-    bot:SetModel(data.mdl)
-    bot:SetModelColor(data.clr)
-    bot:SetSequence("Sit")
-    bot:SetFlexWeight(0, 0)
-    seat:PhysicsInit(SOLID_NONE)
-    seat:SetMoveType(MOVETYPE_NONE)
-    seat:SetSolid(SOLID_NONE)
-
-    self.players[index] = {
-        ready = true,
-        fold = false,
-        bot = true,
-        ind = bot:EntIndex(),
-        strength = nil,
-        value = nil,
-        paidBet = 0
-    }
-
-    self.decks[index] = {}
-
-    gPoker.betType[self:GetBetType()].call(self, bot)
-
-    self:updatePlayersTable()
-    self:updateSeatsPositioning()
-end
-
-
-
 function ENT:updatePlayersTable()
     net.Start("gpoker_updatePlayers")
         net.WriteEntity(self)
@@ -140,14 +59,18 @@ end
 //Player tries to join
 function ENT:Use(act)
     if self:GetGameState() < 1 then
-        if !gPoker.getTableFromPlayer() and ((self:GetBotsPlaceholder() and self:getPlayersAmount() < self:GetMaxPlayers()) or (#self.players < self:GetMaxPlayers())) then
+        if !gPoker.getTableFromPlayer() and (#self.players < self:GetMaxPlayers()) then
+            if (gPoker.betType[self:GetBetType()].canJoin and not gPoker.betType[self:GetBetType()].canJoin(act,self)) then
+                if (DarkRP) then
+                    DarkRP.notify(act, 1, 4, "You can't join this table!")
+                else
+                    act:PrintMessage(HUD_PRINTTALK, "You can't join this table!")
+                end
+                return
+            end
             timer.Simple(0.05, function() //We add delay because of leave request popping up
-                if !IsValid(self) or !IsValid(act) then return end
-
-                if self:GetBotsPlaceholder() and #self.players >= self:GetMaxPlayers() then
-                    for i = #self.players, 1, -1 do
-                        if self.players[i].bot then self:removePlayerFromMatch(Entity(self.players[i].ind)) break end
-                    end
+                if !IsValid(self) or !IsValid(act) then 
+                    return 
                 end
 
                 //Add the player to the players table
@@ -159,7 +82,7 @@ function ENT:Use(act)
                     ind = act:EntIndex(),
                     strength = nil,
                     value = nil,
-                    paidBet = 0
+                    paidBet = 0,
                 }
 
                 gPoker.betType[self:GetBetType()].call(self, act)
@@ -237,12 +160,7 @@ function ENT:updateSeatsPositioning()
 
         if !IsValid(ent) then return end
 
-        local veh 
-        if self.players[i].bot then
-            veh = ent:GetParent()
-        else
-            veh = ent:GetVehicle()
-        end
+        local veh = ent:GetVehicle()
 
         if !IsValid(veh) then return end
         
@@ -575,116 +493,6 @@ function ENT:bettingRound()
     self:nextTurn()
 end
 
-
-
-//Makes the bot choose an action
-function ENT:simulateBotAction(bot)
-    local cards = table.Copy(self.decks[bot])
-    for k,v in pairs(self.communityDeck) do
-        if v.reveal then cards[#cards + 1] = v end
-    end
-
-    local st, vl = self:getDeckValue(cards) --Most important thing in bot ai
-    local proceedTime = math.random(8,30) * 0.1
-
-    //Time to decide
-
-    if self:GetCheck() then --To bet or not to bet, that is the question!
-        local minCheckChance = math.random(80 * (st * 0.1 + vl * 0.01 + 0.1),100) --Min: 8, Max: 82,4
-        local chance = math.random(0, 100)
-
-        if chance >= minCheckChance or gPoker.betType[self:GetBetType()].get(Entity(self.players[bot].ind)) < 1 then
-            timer.Simple(proceedTime, function() 
-                if IsValid(self) then 
-                    if self:GetGameState() < 1 then return end
-
-                    sound.Play("gpoker/check.wav", self:GetPos()) 
-                    self.players[bot].ready = true
-                    self:updatePlayersTable()
-                    self:proceed()
-                end 
-            end)
-        else
-            local val = math.Clamp(math.floor(gPoker.betType[self:GetBetType()].get(Entity(self.players[bot].ind)) * (math.random(5,50) * 0.01) * (st * (math.random(1,5) * 0.1) + 0.1)), math.random(1,5), 999999999999)
-
-            timer.Simple(proceedTime, function() 
-                if IsValid(self) then 
-                    if self:GetGameState() < 1 then return end
-
-                    gPoker.betType[self:GetBetType()].add(Entity(self.players[bot].ind), -val, self)
-                    self:SetCheck(false)
-                    self:SetBet(val)
-                    self.players[bot].paidBet = val
-
-                    for k,v in pairs(self.players) do
-                        if not v.fold then
-                            v.ready = false
-                        end
-                    end
-
-                    sound.Play("mvm/mvm_money_pickup.wav", self:GetPos()) 
-
-                    self.players[bot].ready = true
-                    self:updatePlayersTable()
-                    self:proceed()
-                end 
-            end)
-        end
-    else
-        local bet = self:GetBet()
-        local botValue = gPoker.betType[self:GetBetType()].get(Entity(self.players[bot].ind))
-
-        //Holy shit my brain turned into a swimming pool from this
-
-        local callChance = (( math.pow(2 * botValue, 1.5) ) * math.pow((st + 1), 2) * (100 / (10 * (bet + 1)))) / 100 * math.random(1,5)
-        local foldChance = ((0.5 * botValue) * math.pow(0.35 * (bet + 1), 2) * (100 / (14000 * (0.5 * (st + 1)))) ) / 100 * math.Clamp((self:GetGameState() * (math.random(10,20) * 0.1))/#gPoker.gameType[self:GetGameType()].states, 0.1, 1.2) * math.random(1,5)
-        local raiseChance = (( math.pow(2 * botValue, 1.5) ) * math.pow((st + 1), 2) * (100 / (25 * (bet + 1)))) / 100 * math.random(1,5)
-
-        local canRaise = botValue > bet
-
-        timer.Simple(proceedTime, function()
-            if !IsValid(self) then return end
-            if self:GetGameState() < 1 then return end
-
-            if foldChance > callChance and ((callChance > raiseChance and canRaise) or true) then
-                self.players[bot].fold = true
-            elseif canRaise and raiseChance > callChance and raiseChance > foldChance then
-                local val = self:GetBet() + math.floor(gPoker.betType[self:GetBetType()].get(Entity(self.players[bot].ind)) * 0.1 * (st * (math.random(1,5) * 0.1) + 0.1))
-                gPoker.betType[self:GetBetType()].add(Entity(self.players[bot].ind), -val, self)
-                self.players[bot].paidBet = val
-    
-                for k,v in pairs(self.players) do
-                    if not v.fold then
-                        v.ready = false
-                    end
-                end
-        
-                self:SetBet(val)
-        
-                sound.Play("mvm/mvm_money_pickup.wav", self:GetPos())
-            else
-                gPoker.betType[self:GetBetType()].add(Entity(self.players[bot].ind), -(self:GetBet() - self.players[bot].paidBet), self)
-                self.players[bot].paidBet = self:GetBet()
-    
-                sound.Play("mvm/mvm_money_pickup.wav", self:GetPos())
-            end
-
-            self.players[bot].ready = true
-            self:updatePlayersTable()
-
-            timer.Simple(0.2, function()
-                if !IsValid(self) then return end
-                if self:GetGameState() < 1 then return end
-
-                self:proceed()
-            end)
-        end)
-
-    end
-end
-
-
-
 //Called after player choosed an action
 function ENT:proceed()
     //We check if there is only one player not folded
@@ -732,146 +540,6 @@ function ENT:drawingRound()
     self:nextTurn()
 end
 
-
-
-//Makes the bot choose which card to exchange
-//somehow freezed the game
-function ENT:simulateBotExchange(bot)
-    local cards = table.Copy(self.decks[bot])
-    for k,v in pairs(self.communityDeck) do
-        if v.reveal then cards[#cards + 1] = v end
-    end
-
-    local st, vl = self:getDeckValue(cards)
-    local proceedTime = math.random(8,30) * 0.1
-
-    local suits, ranks = {}, {}
-    for i = 0, 12 do
-        if i < 4 then
-            suits[i] = 0
-        end
-        ranks[i] = 0
-    end
-    for k,v in pairs(self.decks[bot]) do
-        suits[v.suit] = suits[v.suit] + 1
-        ranks[v.rank] = ranks[v.rank] + 1
-    end
-
-    local picked = {}
-    local chance = math.random(0,100)
-    local minChance
-    local highCard = nil
-    for i = 12, 0, -1 do
-        if ranks[i] > 0 then highCard = i break end
-    end
-
-    if st == 0 or st == 1 or st == 3 then
-        //If we have 2-4 same suits, our bot will decide on trying to get flush
-        local minSuits = math.random(2,4)
-
-        for i = 0, 3 do
-            if suits[i] >= minSuits then
-                minChance = 65 * (0.5 - suits[i] * 0.1) * (st + 1)
-                if chance > minChance then
-                    for k,v in pairs(self.decks[bot]) do
-                        if v.suit != i then picked[#picked + 1] = k end
-                    end
-                    break
-                end
-            end
-        end
-
-        //If we almost have a sequence, our bot will decide to try and get straight
-        if table.IsEmpty(picked) and !(st == 3) then
-            local minSeq = math.random(3,4)
-            local seq = 0
-            local cardSeq = {}
-
-            for i = 0, 12 do
-                if ranks[i] > 0 then 
-                    seq = seq + 1 
-                    local pair = false
-                    if ranks[i] > 1 then pair = i end
-                    cardSeq[#cardSeq + 1] = i 
-                elseif seq > 0 then 
-                    seq = 0
-                    cardSeq = {} 
-                end
-            end
-
-            if seq >= minSeq then
-                minChance = 75 * (0.6 - seq * 0.1) + (st + 1)
-                if chance > minChance then
-                    for k,v in pairs(self.decks[bot]) do
-                        if table.HasValue(cardSeq, v.rank) then
-                            //Exchange one card from pair to form sequence
-                            if pair and pair == v.rank then
-                                pair = false
-                                picked[#picked + 1] = k
-                            end
-                        else
-                            picked[#picked + 1] = k
-                        end
-                    end
-                end
-            end
-        end
-
-        //For high card: we either exchange the highest card or everything
-        if table.IsEmpty(picked) then
-            if st == 0 then
-                if highCard < 6 then minChance = math.random(1,15) * (highCard * 0.5) else minChance = 0 end
-
-                for k,v in pairs(self.decks[bot]) do
-                    if v.rank == highCard then 
-                        if chance > minChance then picked[#picked + 1] = k end
-                    else
-                        picked[#picked + 1] = k
-                    end
-                end
-            else //For pair and three, exchange all but pair, or a random card
-                local set
-                local keptCard = false
-
-                for i = 0, 12 do
-                    if ranks[i] > 1 then set = i break end
-                end
-
-                minChance = math.random(1,15) * set
-
-                for k,v in pairs(self.decks[bot]) do
-                    if v.rank == set then continue end
-                    if chance > minChance then continue end
-                    picked[#picked + 1] = k
-                end
-            end
-        end
-    end
-
-    timer.Simple(proceedTime, function()
-        if !IsValid(self) then return end
-        if self:GetGameState() < 1 then return end
-
-        if !table.IsEmpty(picked) then
-            local old = picked
-            for k,v in pairs(picked) do
-                self:dealSingularCard(bot, v)
-            end
-
-            for k,v in pairs(old) do
-                self.deck[self.decks[bot][v].suit][self.decks[bot][v].rank] = true
-            end
-            sound.Play("gpoker/cardthrow.wav", self:GetPos())
-        end
-
-        self.players[bot].ready = true
-        self:updatePlayersTable()
-        self:proceed()
-    end)
-end
-
-
-
 //Reveals the community card(s), argument is either a table (multiple cards) or number (single card) 
 function ENT:revealCommunityCards(cards)
     local revealTime = 0.5
@@ -906,13 +574,11 @@ function ENT:revealCommunityCards(cards)
                     end
 
                     for k,v in pairs(self.players) do
-                        if !v.bot then
-                            net.Start("gpoker_sendDeck", false)
-                                net.WriteEntity(self)
-                                net.WriteBool(true)
-                                net.WriteTable(clientCopy)
-                            net.Send(Entity(v.ind))
-                        end
+                        net.Start("gpoker_sendDeck", false)
+                            net.WriteEntity(self)
+                            net.WriteBool(true)
+                            net.WriteTable(clientCopy)
+                        net.Send(Entity(v.ind))
                     end
                 end
             end)
@@ -939,13 +605,11 @@ function ENT:revealCommunityCards(cards)
             end
 
             for k,v in pairs(self.players) do
-                if !v.bot then
-                    net.Start("gpoker_sendDeck", false)
-                        net.WriteEntity(self)
-                        net.WriteBool(true)
-                        net.WriteTable(clientCopy)
-                    net.Send(Entity(v.ind))
-                end
+                net.Start("gpoker_sendDeck", false)
+                    net.WriteEntity(self)
+                    net.WriteBool(true)
+                    net.WriteTable(clientCopy)
+                net.Send(Entity(v.ind))
             end
         end
     end
@@ -1172,7 +836,6 @@ end
 
 
 function ENT:removePlayerFromMatch(ply)
-    if !ply:IsPlayer() then self:removeBot(ply) return end
 
     local key = self:getPlayerKey(ply)
 
@@ -1216,31 +879,6 @@ function ENT:removePlayerFromMatch(ply)
     end
 end
 
-
-
-//01110101 01101100 01110100 01110010 01100001 01100100 01100101 01100001 01110100 01101000
-function ENT:removeBot(bot)
-    local key = self:getPlayerKey(bot)
-
-    if self:GetTurn() == key and #self.players > 0 then self:nextTurn() end
-
-    for k,v in pairs(self.decks[key]) do
-        if IsValid(Entity(v.ind)) then Entity(v.ind):Remove() end
-    end
-
-    table.remove(self.decks, key)
-    table.remove(self.players, key)
-
-    self:updateSeatsPositioning()
-    self:updateDecksPositioning()
-    self:updatePlayersTable()
-
-    bot:GetParent():Remove()
-    bot:Remove()
-end
-
-
-
 //Prepare the game for another round
 function ENT:prepareForRestart()
     if timer.Exists("gpoker_intermission" .. self:EntIndex()) then timer.Remove("gpoker_intermission" .. self:EntIndex()) end
@@ -1269,14 +907,13 @@ function ENT:prepareForRestart()
         end
     end
 
-    if (self:getPlayersAmount() > 1) or (self:getPlayersAmount() > 0 and self:getBotsAmount() > 0) then self:SetGameState(0) else
+    if (self:getPlayersAmount() > 1) or (self:getPlayersAmount() > 0) then self:SetGameState(0) else
         if self:getPlayersAmount() > 0 then
             for k,v in pairs(self.players) do
-                if !v.bot then self:removePlayerFromMatch(Entity(v.ind)) end
+                self:removePlayerFromMatch(Entity(v.ind))
             end
         end
         self:SetGameState(-1) 
-        self:updateBots(self.botsInfo)
         for k,v in pairs(self.players) do
             gPoker.betType[self:GetBetType()].call(self, Entity(v.ind))
         end

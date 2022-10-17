@@ -79,7 +79,6 @@ net.Receive("gpoker_derma_createGame", function()
 
     local gameOption = options:Add("Game")
     local betOption = options:Add("Betting")
-    local botOption = options:Add("Bots")
 
     local createButton = vgui.Create("DButton", left)
     createButton:Dock(BOTTOM)
@@ -183,244 +182,17 @@ net.Receive("gpoker_derma_createGame", function()
         entryFee:SetValue(entryFee:GetMax() / 10)
     end
 
-    //Bots
-
-    local botPanel = vgui.Create("DPanel", right)
-    botPanel:Dock(FILL)
-    botPanel:Hide()
-
-    local placeholder = vgui.Create("DCheckBoxLabel", botPanel)
-    placeholder:Dock(TOP)
-    placeholder:DockMargin(10,2,10,0)
-    placeholder:SetText("Placeholders")
-    placeholder:SetTextColor(color_black)
-    placeholder:SetTooltip("When table is full, any player trying to join will take random bot's place")
-
-    local botsList = vgui.Create("DListView", botPanel)
-    botsList:Dock(TOP)
-    botsList:DockMargin(10,10,10,0)
-    botsList:SetTall(125)
-    botsList:AddColumn("Name", 1)
-    botsList:AddColumn("Model", 2)
-    botsList:AddColumn("Color", 3)
-    
-    local botAdd = vgui.Create("DButton", botPanel)
-    botAdd:Dock(LEFT)
-    botAdd:DockMargin(10,10,2,2)
-    botAdd:SetText("Add")
-
-    local botRemove = vgui.Create("DButton", botPanel)
-    botRemove:Dock(LEFT)
-    botRemove:DockMargin(2,10,2,2)
-    botRemove:SetText("Remove")
-    botRemove:SetEnabled(false)
-
-    local botEdit = vgui.Create("DButton", botPanel)
-    botEdit:Dock(LEFT)
-    botEdit:DockMargin(2,10,2,2)
-    botEdit:SetText("Edit")
-    botEdit:SetEnabled(false)
-
-    local bots = {}
-
-    botAdd.DoClick = function()
-        //We have to use this method due to #GetLines() returning the highest id instead of the amount
-        local count = 0
-        for k,v in pairs(botsList:GetLines()) do count = count + 1 end
-            
-        if count >= math.Clamp(maxPly:GetValue(), maxPly:GetMin(), maxPly:GetMax()) then return end
-
-        local max = 16 --Max amount of times we want our loop to try and find an unique name 
-        local x = 0
-        local unique = true
-        local name
-
-        repeat
-            name = table.Random(gPoker.bots.names)
-            x = x + 1
-
-            if #bots > 0 then
-                for k,v in pairs(bots) do
-                    if v.name == name then unique = false break end
-                end
-            end
-        until x >= max or unique
-
-        local mdl = table.Random(player_manager.AllValidModels())
-        local clr = Vector(math.random(0,255)/255, math.random(0,255)/255, math.random(0,255)/255)
-
-        local line = botsList:AddLine(name, mdl, Color(clr.r * 255, clr.g * 255, clr.b * 255))
-        line.OnSelect = function()
-            botRemove:SetEnabled(true)
-            botEdit:SetEnabled(true)
-        end
-
-        bots[#bots + 1] = {
-            name = name,
-            mdl = mdl,
-            clr = clr,
-            panel = line
-        }
-    end
-
-    maxPly.OnValueChanged = function()
-        if #bots > maxPly:GetValue() then
-            for i = #bots, 1, -1 do
-                if i == maxPly:GetValue() then break end
-
-                table.remove(bots, i)
-                botsList:RemoveLine(i)
-            end
-        end
-    end
-
-    botRemove.DoClick = function()
-        local selected = botsList:GetSelected()
-
-        for k,v in pairs(selected) do            
-            for key, val in pairs(bots) do
-                if val.panel == v then table.remove(bots, key) break end
-            end
-            botsList:RemoveLine(v:GetID())
-        end
-
-        botRemove:SetEnabled(false)
-        botEdit:SetEnabled(false)
-    end
-
-    botEdit.DoClick = function()
-        local selected, selectedPanel = botsList:GetSelectedLine()
-        local key = nil
-
-        for k,v in pairs(bots) do
-            if v.panel == selectedPanel then key = k break end
-        end
-
-        if key == nil then return end
-
-        local editWin = vgui.Create("DFrame")
-        editWin:SetSize(winW * 1.3, winH * 1.75)
-        editWin:Center()
-        editWin:SetTitle("Edit Bot")
-        editWin:MakePopup()
-
-        local left = vgui.Create("DPanel", editWin)
-        left:Dock(LEFT)
-        left:SetWide(editWin:GetWide()/3 * 2 - 15)
-
-        local labelName = vgui.Create("DLabel", left)
-        labelName:Dock(TOP)
-        labelName:DockMargin(10,2,10,0)
-        labelName:SetText("Name")
-        labelName:SetTextColor(color_black)
-
-        local editName = vgui.Create("DTextEntry", left)
-        editName:Dock(TOP)
-        editName:DockMargin(10,0,10,0)
-        editName:SetText(bots[key].name)
-
-        local clrLabel = vgui.Create("DLabel", left)
-        clrLabel:Dock(TOP)
-        clrLabel:DockMargin(10,10,10,0)
-        clrLabel:SetText("Color")
-        clrLabel:SetTextColor(color_black)
-
-        local editClr = vgui.Create("DColorMixer", left)
-        editClr:Dock(TOP)
-        editClr:DockMargin(10,0,10,0)
-        editClr:SetColor(Color(bots[key].clr.r * 255, bots[key].clr.g * 255, bots[key].clr.b * 255))
-
-        local finish = vgui.Create("DButton", left)
-        finish:Dock(BOTTOM)
-        finish:DockMargin(100,10,100,2)
-        finish:SetText("Edit")
-
-
-
-        local right = vgui.Create("DPanel", editWin)
-        right:Dock(RIGHT)
-        right:SetWide(editWin:GetWide() - left:GetWide() - 15)
-
-        local goddamnmodel = bots[key].mdl
-
-        local preview = vgui.Create("DModelPanel", right)
-        preview:Dock(TOP)
-        preview:SetTall(preview:GetWide() * 2)
-        preview.updateSelf = function()
-            preview:SetModel(goddamnmodel)
-
-            local bone = preview.Entity:LookupBone("ValveBiped.Bip01_Head1")
-            if bone then
-                local eyepos = preview.Entity:GetBonePosition(bone)
-                preview:SetLookAt(eyepos)
-                preview:SetCamPos(eyepos - Vector(-15, 0, 0))
-                preview.Entity:SetEyeTarget(eyepos - Vector(-15, 0, 0))
-            end
-            function preview.Entity:GetPlayerColor() return editClr:GetVector() end
-        end
-        preview.LayoutEntity = function() return end
-        preview.updateSelf()
-
-        local scroll = vgui.Create("DScrollPanel", right)
-        scroll:Dock(FILL)
-
-        local theList = vgui.Create("DIconLayout", scroll)
-        theList:Dock(FILL)
-        theList:DockMargin(2,0,0,0)
-
-        for name, model in SortedPairs(player_manager.AllValidModels()) do
-            local icon = vgui.Create("SpawnIcon", theList)
-			icon:SetModel(model)
-			icon:SetSize(50, 50)
-			icon:SetTooltip(name)
-            icon.mdl = model
-            icon.DoClick = function()
-                goddamnmodel = icon.mdl
-                preview.updateSelf()
-            end
-        end
-
-        finish.DoClick = function()
-            bots[key].name = editName:GetValue()
-            bots[key].mdl = goddamnmodel
-            bots[key].clr = Vector(editClr:GetColor().r / 255, editClr:GetColor().g / 255, editClr:GetColor().b / 255)
-
-            selectedPanel:SetColumnText(1, bots[key].name)
-            selectedPanel:SetColumnText(2, bots[key].mdl)
-            selectedPanel:SetColumnText(3, Color(editClr:GetColor().r, editClr:GetColor().g, editClr:GetColor().b))
-
-            editWin:Remove()
-        end
-    end
-
-
-    //Option clicky clicky//
-
-
     gameOption.DoClick = function()
         gamePanel:Show()
         betPanel:Hide()
-        botPanel:Hide()
     end
 
     betOption.DoClick = function()
         gamePanel:Hide()
         betPanel:Show()
-        botPanel:Hide()
     end
-
-    botOption.DoClick = function()
-        gamePanel:Hide()
-        betPanel:Hide()
-        botPanel:Show()
-    end
-
-
 
     createButton.DoClick = function()
-        for k,v in pairs(bots) do
-            v.panel = nil
-        end
 
         local options = {
             game = {
@@ -432,10 +204,6 @@ net.Receive("gpoker_derma_createGame", function()
                 entry = math.floor(entryFee:GetValue()),
                 start = math.floor(startValue:GetValue()) or 0
             },
-            bot = {
-                placehold = placeholder:GetChecked(),
-                list = bots
-            }
         }
 
         net.Start("gpoker_derma_createGame")

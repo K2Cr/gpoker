@@ -22,7 +22,6 @@ net.Receive("gpoker_derma_createGame", function(l, p)
     local poker = ents.Create("ent_poker_game")
     poker:SetPos(pos)
     poker:SetAngles(ang)
-    poker.botsInfo = options.bot.list
     poker:Spawn()
     poker:Activate()
 
@@ -37,9 +36,6 @@ net.Receive("gpoker_derma_createGame", function(l, p)
     poker:SetBetType(options.bet.type)
     poker:SetEntryBet(options.bet.entry)
     poker:SetStartValue(options.bet.start)
-
-    poker:SetBotsPlaceholder(options.bot.placehold)
-    poker:SetBots(#options.bot.list)
 end)
 
 
@@ -48,7 +44,16 @@ net.Receive("gpoker_payEntry", function(_, ply)
     local ent = net.ReadEntity()
     local paid = net.ReadBool()
 
-    if !IsValid(ent) then return end
+    if (not ent or not IsValid(ent)) then return end
+
+    if (gPoker.betType[ent:GetBetType()].canJoin and not gPoker.betType[ent:GetBetType()].canJoin(ply,ent)) then
+        if (DarkRP) then
+            DarkRP.notify(ply, 1, 4, "You do not have enough money for the entry fee!")
+        else
+            ply:PrintMessage(HUD_PRINTTALK, "You do not have enough money for the entry fee!")
+        end
+        paid = false
+    end
 
     if paid then
         gPoker.betType[ent:GetBetType()].add(ply, -ent:GetEntryBet(), ent)
@@ -208,13 +213,5 @@ end)
 hook.Add("CanPlayerSuicide", "gpoker_disableKillBind", function(ply)
     if ply:InVehicle() and IsValid(ply:GetVehicle():GetParent()) and ply:GetVehicle():GetParent():GetClass() == "ent_poker_game" then
         return false 
-    end
-end)
-
-hook.Add("CanPlayerEnterVehicle", "gpoker_disallowSittingOnBotSeats", function(ply, veh, role)
-    if !table.IsEmpty(veh:GetChildren()) then
-        for k,v in pairs(veh:GetChildren()) do
-            if v:GetClass() == "ent_poker_bot" then return false end
-        end
     end
 end)

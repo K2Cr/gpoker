@@ -37,26 +37,11 @@ function ENT:getPlayersAmount()
     local count = 0
 
     for k,v in pairs(self.players) do
-        if !v.bot then count = count + 1 end
+        count = count + 1
     end
 
     return count
 end
-
-
-
-//Returns the amount of BOTS
-function ENT:getBotsAmount()
-    local count = 0
-
-    for k,v in pairs(self.players) do
-        if v.bot then count = count + 1 end
-    end
-
-    return count
-end
-
-
 
 function ENT:SetupDataTables()
     //Configurables
@@ -65,8 +50,6 @@ function ENT:SetupDataTables()
     self:NetworkVar("Int", 2, "BetType")
     self:NetworkVar("Float", 0, "EntryBet")
     self:NetworkVar("Float", 1, "StartValue")
-    self:NetworkVar("Bool", 0, "BotsPlaceholder")
-    self:NetworkVar("Int", 3, "Bots")
 
     //Match important stuff
     self:NetworkVar("Int", 4, "GameState")
@@ -152,10 +135,6 @@ function ENT:SetupDataTables()
     end
 
     if SERVER then
-        self:NetworkVarNotify("Bots", function(ent,name,old,new)
-            self:updateBots(self.botsInfo)
-        end)
-
         self:NetworkVarNotify("Turn", function(ent, name, old, new)
             if self:GetGameState() > 0 and new != 0 then
                 local ply = Entity(self.players[new].ind)
@@ -163,14 +142,10 @@ function ENT:SetupDataTables()
                 if !IsValid(ply) then self:nextTurn() return end
 
                 if gPoker.gameType[self:GetGameType()].states[self:GetGameState()].drawing then
-                    if self.players[new].bot then self:simulateBotExchange(new) return end
-
                     net.Start("gpoker_derma_exchange")
                         net.WriteEntity(self)
                     net.Send(ply)
                 else
-                    if self.players[new].bot then self:simulateBotAction(new) return end
-
                     net.Start("gpoker_derma_bettingActions", false)
                         net.WriteEntity(self)
                         net.WriteBool(self:GetCheck())

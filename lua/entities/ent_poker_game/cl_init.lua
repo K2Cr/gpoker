@@ -57,7 +57,7 @@ function ENT:Draw()
                 local key = self:getPlayerKey(ent)
                 local margin = 5
                 local nick
-                if ent:IsPlayer() then nick = ent:Nick() else nick = "[BOT] " .. ent:GetBotName() end
+                if ent:IsPlayer() then nick = ent:Nick() else nick = "PLACEHOLDER" end
                 local fontW, fontH = surface.GetTextSize(nick)
                 local bgW, bgH = math.Clamp(fontW, 85, 1000) + margin * 2, fontH + margin * 2
         
@@ -149,7 +149,7 @@ function ENT:Initialize()
                 draw.SimpleText(plyHeader, "gpoker_bold", x - bW / 2 + pad, y - bH / 2 + fontH + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
                 draw.SimpleText("(" .. #self.players .. "/" .. self:GetMaxPlayers() .. ")", "gpoker_text", x - bW / 2 + pad + plyW, y - bH / 2 + fontH + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
                 draw.SimpleText(entryHeader, "gpoker_bold", x - bW / 2 + pad, y - bH / 2 + fontH * 2 + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-                draw.SimpleText(self:GetEntryBet() .. gPoker.betType[self:GetBetType()].fix, "gpoker_text", x - bW / 2 + pad + entryW, y - bH / 2 + fontH * 2 + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                draw.SimpleText(gPoker.betType[self:GetBetType()].fix .. self:GetEntryBet(), "gpoker_text", x - bW / 2 + pad + entryW, y - bH / 2 + fontH * 2 + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
                 if gPoker.betType[self:GetBetType()].canSet then
                     draw.SimpleText(startHeader, "gpoker_bold", x - bW / 2 + pad, y - bH / 2 + fontH * 3 + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
                     draw.SimpleText(gPoker.betType[self:GetBetType()].fix .. self:GetStartValue() , "gpoker_text", x - bW / 2 + pad + startW, y - bH / 2 + fontH * 3 + pad + 15, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
@@ -161,8 +161,12 @@ function ENT:Initialize()
                 end
             
                 local text = "Press [" .. string.upper(input.LookupBinding("+use")) .. "] to join."
-                if !canJoin then text = "Cannot join - already in a match." end
-                if #self.players >= self:GetMaxPlayers() and (!self:GetBotsPlaceholder()) then text = "Cannot join - match full" end
+                if !canJoin then 
+                    text = "Cannot join - already in a match." 
+                end
+                if #self.players >= self:GetMaxPlayers() then 
+                    text = "Cannot join - match full" 
+                end
                 draw.SimpleText(text, "gpoker_bold", x, y + bH / 2 - pad, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
             end
         end
