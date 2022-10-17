@@ -180,7 +180,7 @@ end)
 
 
 net.Receive("gpoker_derma_leaveRequest", function(l, ply)
-    local poker = net.ReadEntity()
+    local poker = gPoker.getTableFromPlayer(ply)
     poker:removePlayerFromMatch(ply)
 end)
 
@@ -210,8 +210,20 @@ hook.Add("EntityTakeDamage", "gpoker_nullifyPlayerDamage", function(attacked, dm
     end
 end)
 
+hook.Add("PlayerChangedTeam","gpoker_plyChangedTeam",function(ply)
+    local gpoker_tbl = gPoker.getTableFromPlayer(ply)
+    if (gpoker_tbl and IsValid(gpoker_tbl)) then
+        if (DarkRP) then
+            DarkRP.notify(ply, 1, 4, "You have left the poker table.")
+        else
+            ply:PrintMessage(HUD_PRINTTALK, "You have left the poker table.")
+        end
+        gpoker_tbl:removePlayerFromMatch(ply)
+    end
+end)
+
 hook.Add("CanPlayerSuicide", "gpoker_disableKillBind", function(ply)
     if ply:InVehicle() and IsValid(ply:GetVehicle():GetParent()) and ply:GetVehicle():GetParent():GetClass() == "ent_poker_game" then
-        return false 
+        return false
     end
 end)

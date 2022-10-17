@@ -1,10 +1,11 @@
 //Basics//
 
-ENT.Type        = "anim"
-ENT.PrintName   = "GPoker Table"
-ENT.Spawnable   = true
-ENT.Category    = "Fun + Games"
-ENT.Base        = "base_gmodentity"
+ENT.Type            = "anim"
+ENT.PrintName       = "GPoker Table"
+ENT.Spawnable       = true
+ENT.Category        = "GPoker"
+ENT.Base            = "base_gmodentity"
+ENT.IsGPokerTable   = true
 
 //Poker info//
 

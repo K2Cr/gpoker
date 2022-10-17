@@ -105,8 +105,11 @@ function ENT:Use(act)
                 //Position all seats
                 self:updateSeatsPositioning()
 
+                act:SetNWEntity("gpoker_table", self)
                 //If we have enough players, we can start the intermission
-                if self:getPlayersAmount() > 0 and #self.players > 1 and self:GetGameState() == -1 then self:SetGameState(0) end
+                if self:getPlayersAmount() > 0 and #self.players > 1 and self:GetGameState() == -1 then 
+                    self:SetGameState(0) 
+                end
             end)
         end
     end
@@ -839,18 +842,26 @@ function ENT:removePlayerFromMatch(ply)
 
     local key = self:getPlayerKey(ply)
 
-    if key == nil then return end
+    if key == nil then 
+        return 
+    end
 
     local chair = ply:GetVehicle()
     ply:ExitVehicle()
-    if IsValid(chair) then chair:Remove() end
+
+    if IsValid(chair) then 
+        chair:Remove() 
+    end
 
     for k,v in pairs(self.decks[key]) do
-        if IsValid(Entity(v.ind)) then Entity(v.ind):Remove() end
+        if IsValid(Entity(v.ind)) then 
+            Entity(v.ind):Remove() 
+        end
     end
 
     table.remove(self.players, key)
     table.remove(self.decks, key)
+    ply:SetNWEntity("gpoker_table", nil)
 
     self:updateSeatsPositioning()
     self:updateDecksPositioning()
@@ -866,14 +877,14 @@ function ENT:removePlayerFromMatch(ply)
         self:SetDealer(self:GetDealer())
     end
 
-    if self:getPlayersAmount() < 1 or #self.players <= 1 then 
+    if #self.players <= 1 then 
         //Give last player the smackaroos if there is any
         if #self.players > 0 then
-            local lastPlayer = nil
             for k,v in pairs(self.players) do
-                if !v.bot then lastPlayer = k break end
+                gPoker.betType[self:GetBetType()].add(Entity(self.players[k].ind), self:GetPot(), self) 
+                self:removePlayerFromMatch(Entity(self.players[k].ind))
+                break
             end
-            if lastPlayer != nil then gPoker.betType[self:GetBetType()].add(Entity(self.players[lastPlayer].ind), self:GetPot(), self) end
         end
         self:prepareForRestart() 
     end
@@ -881,9 +892,17 @@ end
 
 //Prepare the game for another round
 function ENT:prepareForRestart()
-    if timer.Exists("gpoker_intermission" .. self:EntIndex()) then timer.Remove("gpoker_intermission" .. self:EntIndex()) end
-    if timer.Exists("gpoker_finishDealingCards" .. self:EntIndex()) then timer.Remove("gpoker_finishDealingCards" .. self:EntIndex()) end
-    if timer.Exists("gpoker_dealCards" .. self:EntIndex()) then timer.Remove("gpoker_dealCards" .. self:EntIndex()) end
+    if timer.Exists("gpoker_intermission" .. self:EntIndex()) then 
+        timer.Remove("gpoker_intermission" .. self:EntIndex()) 
+    end
+
+    if timer.Exists("gpoker_finishDealingCards" .. self:EntIndex()) then 
+        timer.Remove("gpoker_finishDealingCards" .. self:EntIndex()) 
+    end
+
+    if timer.Exists("gpoker_dealCards" .. self:EntIndex()) then
+        timer.Remove("gpoker_dealCards" .. self:EntIndex()) 
+    end
 
     self:SetWinner(0)
     self:SetTurn(0)

@@ -319,7 +319,6 @@ function ENT:openEntryFeeDerma()
 
 
 
-
     local pay = vgui.Create("DButton", win)
     pay:SetSize(w/2, h - 20)
     pay:SetPos(2, 20)
@@ -850,7 +849,6 @@ function ENT:openLeaveRequest()
         if !IsValid(self) then return end
         
         net.Start("gpoker_derma_leaveRequest")
-            net.WriteEntity(self)
         net.SendToServer()
     end
 
