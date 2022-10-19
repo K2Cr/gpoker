@@ -214,9 +214,9 @@ gPoker.betType = {
                 return ply:getDarkRPVar("money")
             end
         end,
-        add = function(p, a, e)                        --Method for adding or subtracting the value
+        add = function(ply, a, e)                        --Method for adding or subtracting the value
             if CLIENT then return end
-            if !IsValid(p) then return end
+            if !IsValid(ply) then return end
 
 
             local isDarkRp = false
@@ -225,20 +225,20 @@ gPoker.betType = {
             end
             a = a or 0
 
-            if !isDarkRp or (isDarkRp and !p:IsPlayer()) then 
-                local key = e:getPlayerKey(p)
+            if !isDarkRp or (isDarkRp and !ply:IsPlayer()) then 
+                local key = e:getPlayerKey(ply)
                 if key == nil then return end
 
                 e.players[key].money = e.players[key].money + a
                 e:updatePlayersTable()
             else
-                p:addMoney(a)
+                ply:addMoney(a)
             end
 
             e:SetPot(e:GetPot() - a)
         end,
-        call = function(s, p) --Called after player joins, mostly used for setting up custom value
-            s.players[s:getPlayerKey(p)].money = s:GetStartValue()
+        call = function(poker_tbl, ply) --Called after player joins, mostly used for setting up custom value
+            poker_tbl.players[poker_tbl:getPlayerKey(ply)].money = poker_tbl:GetStartValue()
         end,
         models      = {  --The spinning model at the center
             [1] = {
@@ -264,41 +264,41 @@ gPoker.betType = {
         canSet      = false,
         setMinMax   = {min = 0, max = 0},
         feeMinMax   = {min = 0, max = function() if CLIENT then return LocalPlayer():GetMaxHealth() end end},
-        get         = function(p)
-            if p:IsPlayer() then
-                return p:Health()
+        get         = function(ply)
+            if ply:IsPlayer() then
+                return ply:Health()
             else
-                local ent = gPoker.getTableFromPlayer(p)
+                local ent = gPoker.getTableFromPlayer(ply)
 
                 if !IsValid(ent) then return 0 end
 
-                local key = ent:getPlayerKey(p)
+                local key = ent:getPlayerKey(ply)
                 return ent.players[key].health
             end
         end,
-        add         = function(p, a, e)
+        add         = function(ply, a, e)
             if CLIENT then return end
-            if !IsValid(p) then return end
+            if !IsValid(ply) then return end
             
             a = a or 0
 
-            local hp = gPoker.betType[e:GetBetType()].get(p) + a
+            local hp = gPoker.betType[e:GetBetType()].get(ply) + a
             
             if hp < 1 then 
-                e:removePlayerFromMatch(p)
-                if p:IsPlayer() then p:Kill() end
+                e:removePlayerFromMatch(ply)
+                if ply:IsPlayer() then ply:Kill() end
             else
-                if p:IsPlayer() then p:SetHealth(hp) else 
-                    e.players[e:getPlayerKey(p)].health = hp 
+                if ply:IsPlayer() then ply:SetHealth(hp) else 
+                    e.players[e:getPlayerKey(ply)].health = hp 
                     e:updatePlayersTable() 
                 end
             end
 
             e:SetPot(e:GetPot() - a)
         end,
-        call = function(s, p)
-            if !p:IsPlayer() then
-                s.players[s:getPlayerKey(p)].health = 100 + math.random(0,150) --Add a little randomziation ;)
+        call = function(poker_tbl, ply)
+            if !ply:IsPlayer() then
+                poker_tbl.players[poker_tbl:getPlayerKey(ply)].health = 100 + math.random(0,150) --Add a little randomziation ;)
             end
         end,
         models      = {
@@ -321,11 +321,11 @@ gPoker.betType = {
 if (not gPoker.cards) then
     gPoker.cards = {}
 
-    for s = 0, 3 do
-        gPoker.cards[s] = {}
+    for poker_tbl = 0, 3 do
+        gPoker.cards[poker_tbl] = {}
 
         for r = 0, 12 do
-            gPoker.cards[s][r] = Material("gpoker/cards/" .. s .. r .. ".png")
+            gPoker.cards[poker_tbl][r] = Material("gpoker/cards/" .. poker_tbl .. r .. ".png")
         end
     end
 end
