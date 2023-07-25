@@ -166,7 +166,7 @@ gPoker.betType = {
     [0] = {
         name        = "Money",                  --Name
         fix         = "£",                      --Text after value
-        canSet      = true,               --Can players set the amount of value each player gets in the spawn derma?
+        canSet      = false,               --Can players set the amount of value each player gets in the spawn derma?
         setMinMax   = {min = 0, max = 10000},   --The minimum and maximum number of starting value (if uses)
         canJoin     = function(ply,table)       --Can the player join the table?
             if (not DarkRP) then
@@ -177,7 +177,7 @@ gPoker.betType = {
             
             return balance >= min
         end,
-        payin       = function(ply, table, amount)
+        payin       = function(ply, table)
             local balance = ply:getDarkRPVar("money")
             local min = table:GetEntryBet() or 0
 
@@ -185,7 +185,7 @@ gPoker.betType = {
                 return false, "You don't have enough money to join this table!"
             end
 
-            ply:addMoney(-amount)
+            ply:addMoney(-min)
         end,
         payout      = function(ply, amount)
             ply:addMoney(amount)
@@ -196,46 +196,33 @@ gPoker.betType = {
             end
         end}, --The minimum and maximum of entry fee
         get = function(ply)                           --Method for getting specified player's value
-            if !IsValid(ply) then return end
-
-            local isDarkRp = false
-            if (DarkRP) then
-                isDarkRp = true
+            if (not ply or not IsValid(ply)) then 
+                return 
             end
+            
+            local pokerTbl = gPoker.getTableFromPlayer(ply)
 
-            if !isDarkRp or (isDarkRp and !ply:IsPlayer()) then
-                local pokerTbl = gPoker.getTableFromPlayer(ply)
+            local key = pokerTbl:getPlayerKey(ply)
+            if key == nil then return end
 
-                local key = pokerTbl:getPlayerKey(ply)
-                if key == nil then return end
-
-                return pokerTbl.players[key].money
-            else
-                return ply:getDarkRPVar("money")
-            end
+            return pokerTbl.players[key].money
         end,
-        add = function(ply, a, e)                        --Method for adding or subtracting the value
-            if CLIENT then return end
-            if !IsValid(ply) then return end
-
-
-            local isDarkRp = false
-            if (DarkRP) then
-                isDarkRp = true
+        add = function(ply, a, ent)                        --Method for adding or subtracting the value
+            if CLIENT then 
+                return 
+            end
+            if (not ply or not IsValid(ply)) then 
+                return 
             end
             a = a or 0
 
-            if !isDarkRp or (isDarkRp and !ply:IsPlayer()) then 
-                local key = e:getPlayerKey(ply)
-                if key == nil then return end
+            local key = ent:getPlayerKey(ply)
+            if key == nil then return end
 
-                e.players[key].money = e.players[key].money + a
-                e:updatePlayersTable()
-            else
-                ply:addMoney(a)
-            end
+            ent.players[key].money = ent.players[key].money + a
+            ent:updatePlayersTable()
 
-            e:SetPot(e:GetPot() - a)
+            ent:SetPot(e:GetPot() - a)
         end,
         call = function(poker_tbl, ply) --Called after player joins, mostly used for setting up custom value
             poker_tbl.players[poker_tbl:getPlayerKey(ply)].money = poker_tbl:GetStartValue()
