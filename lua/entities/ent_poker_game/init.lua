@@ -107,7 +107,7 @@ function ENT:Use(act)
 
                 act:SetNWEntity("gpoker_table", self)
                 //If we have enough players, we can start the intermission
-                if self:getPlayersAmount() > 0 and #self.players > 1 and self:GetGameState() == -1 then 
+                if #self.players > 1 and self:GetGameState() == -1 then 
                     self:SetGameState(0) 
                 end
             end)
@@ -926,13 +926,17 @@ function ENT:prepareForRestart()
         end
     end
 
-    if (self:getPlayersAmount() > 1) or (self:getPlayersAmount() > 0) then self:SetGameState(0) else
+    if self:getPlayersAmount() > 1 then 
+        self:SetGameState(0) 
+    else
+
         if self:getPlayersAmount() > 0 then
             for k,v in pairs(self.players) do
                 self:removePlayerFromMatch(Entity(v.ind))
             end
         end
         self:SetGameState(-1) 
+
         for k,v in pairs(self.players) do
             gPoker.betType[self:GetBetType()].call(self, Entity(v.ind))
         end
