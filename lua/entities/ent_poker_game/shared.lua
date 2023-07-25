@@ -31,17 +31,9 @@ function ENT:getPlayerKey(p)
     return nil
 end
 
-
-
 //Returns the amount of ACTUAL PLAYERS
 function ENT:getPlayersAmount()
-    local count = 0
-
-    for k,v in pairs(self.players) do
-        count = count + 1
-    end
-
-    return count
+    return #self.players
 end
 
 function ENT:SetupDataTables()
